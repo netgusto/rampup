@@ -19,7 +19,7 @@ func main() {
 		for _, url := range urls {
 			fmt.Println(url)
 
-			measure := measureURL(url, 3)
+			measure := measureURL(url, 3, URLStatusGetterReal)
 			spew.Dump(measure)
 		}
 	}
@@ -27,7 +27,8 @@ func main() {
 
 func getURLList() []string {
 	// FIXME: implement
-	return []string{"https://www.algoliaaeraerazerazerazerazerazer.com",
+	return []string{
+		"https://www.algoliaaeraerazerazerazerazerazer.com",
 		"https://d85-usw-1.algolia.net/1/isalive",
 		"https://d85-usw-2.algolia.net/1/isalive",
 		"https://d85-usw-3.algolia.net/1/isalive",
