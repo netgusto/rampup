@@ -20,9 +20,10 @@ func main() {
 		for _, url := range urls {
 			fmt.Println(url)
 
-			measure := measureURL(url)
+			measure := measureURL(url, 3)
 			spew.Dump(measure)
 			// fmt.Printf("Status code is %s, duration is %s and also err is %v (at try %d)\n", statusCodeStr, d, err, try)
+			panic("")
 		}
 	}
 }
@@ -34,14 +35,12 @@ type measureResult struct  {
 	err error
 }
 
-
-
-func measureURL(url string) measureResult {
+func measureURL(url string, maxRetries int) measureResult {
 	var statusCode *int
 	var retries int
 	var duration time.Duration
 	var err error
-	for retries = 0; retries < 3; retries++ {
+	for retries = 0; retries <= maxRetries; retries++ {
 		t1 := time.Now()
 		var resp *http.Response
 		resp, err = http.Get(url)
@@ -52,12 +51,8 @@ func measureURL(url string) measureResult {
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return measureResult{statusCode: statusCode, retries: retries, duration: duration, err: err}
+	return measureResult{statusCode: statusCode, retries: retries - 1, duration: duration, err: err}
 }
-
-
-
-// func retry(func() (http.Response,error), int) (http.Response,error, int)
 
 func getURLList() []string {
 	// FIXME: implement
