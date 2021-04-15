@@ -20,17 +20,30 @@ func main() {
 		for _, url := range urls {
 			fmt.Println(url)
 
-			t1 := time.Now()
-			resp, err := http.Get(url)
-			d := time.Since(t1)
+			var err error
+			var resp *http.Response
+			var d time.Duration
 			statusCodeStr := "ERROR"
-			if err == nil {
-				statusCodeStr = strconv.Itoa(resp.StatusCode)
+			var try int
+			for i := 0; i < 3; i++ {
+				try++
+				t1 := time.Now()
+				resp, err = http.Get(url)
+				d = time.Since(t1)
+				if err == nil {
+					statusCodeStr = strconv.Itoa(resp.StatusCode)
+					break
+				}
+				time.Sleep(1 * time.Second)
 			}
-			fmt.Printf("Status code is %s, duration is %s and also err is %v\n", statusCodeStr, d, err)
+
+			fmt.Printf("Status code is %s, duration is %s and also err is %v (at try %d)\n", statusCodeStr, d, err, try)
 		}
 	}
 }
+
+// func measureURL(string)
+// func retry(func() (http.Response,error), int) (http.Response,error, int)
 
 func getURLList() []string {
 	// FIXME: implement
