@@ -15,11 +15,13 @@ import (
 func main() {
 	urls := getURLList()
 
+	statusGetter := URLStatusGetterReal{}
+
 	for k := 0; k < 10; k++ {
 		for _, url := range urls {
 			fmt.Println(url)
 
-			measure := measureURL(url, 3, URLStatusGetterReal)
+			measure := measureURL(url, 3, statusGetter)
 			spew.Dump(measure)
 		}
 	}
