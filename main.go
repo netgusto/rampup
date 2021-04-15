@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/davecgh/go-spew/spew"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 // 1. Get list of URLS
@@ -18,13 +20,21 @@ func main() {
 		for _, url := range urls {
 			fmt.Println(url)
 
+			t1 := time.Now()
+			resp, err := http.Get(url)
+			d := time.Since(t1)
+			statusCodeStr := "ERROR"
+			if err == nil {
+				statusCodeStr = strconv.Itoa(resp.StatusCode)
+			}
+			fmt.Printf("Status code is %s, duration is %s and also err is %v\n", statusCodeStr, d, err)
 		}
 	}
 }
 
 func getURLList() []string {
 	// FIXME: implement
-	return []string{"https://www.algolia.com",
+	return []string{"https://www.algoliaaeraerazerazerazerazerazer.com",
 		"https://d85-usw-1.algolia.net/1/isalive",
 		"https://d85-usw-2.algolia.net/1/isalive",
 		"https://d85-usw-3.algolia.net/1/isalive",
