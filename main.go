@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,33 +16,43 @@ import (
 // 4. Display metrics on stdout
 
 func main() {
-	urls := getURLList()
 
+	urls := getURLList()
 	statusGetter := URLStatusGetterReal{}
 
 	measures := make(chan measureResult)
-
-	go func() {
-		for measure := range measures {
-			fmt.Printf("URL: %s, status: %d, tries: %d, duration: %s, err: %v\n", measure.url, *measure.statusCode, measure.tries, measure.duration, measure.err)
-		}
-	}()
+	go consume(measures)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	minRoundDuration := time.Second * 10
-	cooldown := time.Second * 0
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-sigs
+		fmt.Println("Signal caught, terminating.")
+		cancel()
+	}()
 
-loop:
+	loop(ctx, urls, statusGetter, measures, time.Second*10)
+
+	fmt.Println("Terminated.")
+}
+
+func consume(measures <-chan measureResult) {
+	for measure := range measures {
+		fmt.Printf("URL: %s, status: %d, tries: %d, duration: %s, err: %v\n", measure.url, *measure.statusCode, measure.tries, measure.duration, measure.err)
+	}
+}
+
+func loop(ctx context.Context, urls []string, statusGetter URLStatusGetter, measures chan<- measureResult, minRoundDuration time.Duration) {
 	for {
 		start := time.Now()
 
 		for _, url := range urls {
 			select {
-			case <-sigs:
+			case <-ctx.Done():
 				fmt.Println("Exiting!")
-				break loop
+				return
 			default:
 				go func(url string) {
 					measures <- measureURL(url, 3, statusGetter)
@@ -50,15 +61,17 @@ loop:
 		}
 
 		thisRoundDuration := time.Since(start)
+		cooldown := time.Second * 0
+
 		if thisRoundDuration < minRoundDuration {
 			cooldown = minRoundDuration - thisRoundDuration
 			fmt.Printf("Looping to fast! Waiting %s\n", cooldown)
 		}
 
 		select {
-		case <-sigs:
+		case <-ctx.Done():
 			fmt.Println("Exiting!")
-			break loop
+			return
 		case <-time.After(cooldown):
 		}
 	}
