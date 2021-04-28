@@ -5,6 +5,7 @@ import (
 )
 
 type measureResult struct {
+	url        string
 	statusCode *int
 	tries      int
 	duration   time.Duration
@@ -31,6 +32,7 @@ func measureURL(url string, maxTries int, statusGetter URLStatusGetter) measureR
 	}
 
 	return measureResult{
+		url:        url,
 		statusCode: statusCode,
 		tries:      tries,
 		duration:   duration,

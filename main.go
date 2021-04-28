@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
-
-	"github.com/davecgh/go-spew/spew"
 	// "strconv"
 )
 
@@ -21,27 +23,61 @@ func main() {
 
 	go func() {
 		for measure := range measures {
-			spew.Dump(measure)
+			fmt.Printf("URL: %s, status: %d, tries: %d, duration: %s, err: %v\n", measure.url, *measure.statusCode, measure.tries, measure.duration, measure.err)
 		}
 	}()
 
-	for k := 0; k < 10; k++ {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	minRoundDuration := time.Second * 10
+	cooldown := time.Second * 0
+
+loop:
+	for {
+		start := time.Now()
+
 		for _, url := range urls {
-			go func(url string) {
-				measures <- measureURL(url, 3, statusGetter)
-			}(url)
+			select {
+			case <-sigs:
+				fmt.Println("Exiting!")
+				break loop
+			default:
+				go func(url string) {
+					measures <- measureURL(url, 3, statusGetter)
+				}(url)
+			}
+		}
+
+		thisRoundDuration := time.Since(start)
+		if thisRoundDuration < minRoundDuration {
+			cooldown = minRoundDuration - thisRoundDuration
+			fmt.Printf("Looping to fast! Waiting %s\n", cooldown)
+		}
+
+		select {
+		case <-sigs:
+			fmt.Println("Exiting!")
+			break loop
+		case <-time.After(cooldown):
 		}
 	}
-
-	time.Sleep(time.Second * 10)
 }
 
 func getURLList() []string {
 	// FIXME: implement
 	return []string{
-		"https://www.algoliaaeraerazerazerazerazerazer.com",
 		"https://d85-usw-1.algolia.net/1/isalive",
 		"https://d85-usw-2.algolia.net/1/isalive",
 		"https://d85-usw-3.algolia.net/1/isalive",
+		"https://c1-test-1.algolia.net/1/isalive",
+		"https://c1-test-2.algolia.net/1/isalive",
+		"https://c1-test-3.algolia.net/1/isalive",
+		"https://c1-jp-1.algolia.net/1/isalive",
+		"https://c1-jp-2.algolia.net/1/isalive",
+		"https://c1-jp-3.algolia.net/1/isalive",
+		"https://c3-de-1.algolia.net/1/isalive",
+		"https://c3-de-2.algolia.net/1/isalive",
+		"https://c3-de-3.algolia.net/1/isalive",
 	}
 }
