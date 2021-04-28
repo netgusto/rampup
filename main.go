@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	// "strconv"
@@ -17,14 +17,23 @@ func main() {
 
 	statusGetter := URLStatusGetterReal{}
 
-	for k := 0; k < 10; k++ {
-		for _, url := range urls {
-			fmt.Println(url)
+	measures := make(chan measureResult)
 
-			measure := measureURL(url, 3, statusGetter)
+	go func() {
+		for measure := range measures {
 			spew.Dump(measure)
 		}
+	}()
+
+	for k := 0; k < 10; k++ {
+		for _, url := range urls {
+			go func(url string) {
+				measures <- measureURL(url, 3, statusGetter)
+			}(url)
+		}
 	}
+
+	time.Sleep(time.Second * 10)
 }
 
 func getURLList() []string {
