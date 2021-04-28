@@ -20,9 +20,6 @@ func main() {
 	urls := getURLList()
 	statusGetter := URLStatusGetterReal{}
 
-	measures := make(chan measureResult)
-	go consume(measures)
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -33,30 +30,57 @@ func main() {
 		cancel()
 	}()
 
+	measures := make(chan measureResult)
+	go consume(ctx, measures)
+
 	loop(ctx, urls, statusGetter, measures, time.Second*10)
 
 	fmt.Println("Terminated.")
 }
 
-func consume(measures <-chan measureResult) {
-	for measure := range measures {
-		fmt.Printf("URL: %s, status: %d, tries: %d, duration: %s, err: %v\n", measure.url, *measure.statusCode, measure.tries, measure.duration, measure.err)
+func consume(ctx context.Context, measures <-chan measureResult) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case measure := <-measures:
+			fmt.Printf("URL: %s, status: %d, tries: %d, duration: %s, err: %v\n", measure.url, *measure.statusCode, measure.tries, measure.duration, measure.err)
+		}
+	}
+}
+
+func worker(ctx context.Context, workerID int, jobs <-chan string, statusGetter URLStatusGetter, measures chan<- measureResult) {
+	for url := range jobs {
+		select {
+		case <-ctx.Done():
+			fmt.Printf("Exiting worker %d\n", workerID)
+			return
+		case measures <- measureURL(url, 3, statusGetter):
+		}
 	}
 }
 
 func loop(ctx context.Context, urls []string, statusGetter URLStatusGetter, measures chan<- measureResult, minRoundDuration time.Duration) {
+
+	jobs := make(chan string)
+	for k := 0; k < 2; k++ {
+		go worker(ctx, k, jobs, statusGetter, measures)
+	}
+
+	round := 0
+
 	for {
 		start := time.Now()
+
+		round += 1
+		fmt.Printf("Starting round %d\n", round)
 
 		for _, url := range urls {
 			select {
 			case <-ctx.Done():
 				fmt.Println("Exiting!")
 				return
-			default:
-				go func(url string) {
-					measures <- measureURL(url, 3, statusGetter)
-				}(url)
+			case jobs <- url:
 			}
 		}
 
